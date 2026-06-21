@@ -1,0 +1,63 @@
+import pandas as pd
+
+
+def clean_multi_water_quality_data(input_path, output_clean_path, output_alert_path):
+    print("🚀 开始执行 V2.0 多指标水质数据清洗...")
+    df = pd.read_csv(input_path, parse_dates=['timestamp'])
+
+    # 定义我们要处理的指标核心名
+    parameters = ['cod', 'ss', 'tn', 'tp']
+
+    # 步骤 1：批量处理缺失值（线性插值）
+    for param in parameters:
+        inf_col = f'influent_{param}'
+        if df[inf_col].isnull().any():
+            df[inf_col] = df[inf_col].interpolate(method='linear')
+    print("✅ 步骤1：所有进水指标缺失值已通过线性插值修复。")
+
+    # 步骤 2：批量处理负数（归零）与 逻辑错误（出水>进水 剔除）
+    logical_error_mask = pd.Series(False, index=df.index)  # 初始一个全False的遮罩
+
+    for param in parameters:
+        inf_col = f'influent_{param}'
+        eff_col = f'effluent_{param}'
+
+        # 将负数修正为0
+        df.loc[df[eff_col] < 0, eff_col] = 0
+
+        # 记录逻辑错误的行 (只要有任意一个指标出水>进水，这行数据就作废)
+        logical_error_mask = logical_error_mask | (df[eff_col] > df[inf_col])
+
+    df_clean = df[~logical_error_mask].copy()
+    print(f"✅ 步骤2&3：修正了负数，并剔除了 {logical_error_mask.sum()} 条逻辑错乱的数据。")
+
+    # 步骤 4：多指标超标预警（这是亮点：使用字典配置阈值）
+    # 建立国家一级A排放标准字典
+    thresholds = {
+        'effluent_cod': 50,
+        'effluent_ss': 10,
+        'effluent_tn': 15,
+        'effluent_tp': 0.5
+    }
+
+    # 只要有任意一个指标超标，就触发报警
+    alert_condition = pd.Series(False, index=df_clean.index)
+    for col, limit in thresholds.items():
+        alert_condition = alert_condition | (df_clean[col] > limit)
+
+    alert_log = df_clean[alert_condition].copy()
+
+    # 保存结果
+    alert_log.to_csv(output_alert_path, index=False)
+    df_clean.to_csv(output_clean_path, index=False)
+
+    print(f"🚨 步骤4：发现 {len(alert_log)} 条超标记录，已生成多维预警日志！")
+    print(f"💾 清洗完毕！数据已保存。")
+
+
+# 运行路径 (自行修改为你电脑的绝对路径)
+clean_multi_water_quality_data(
+    r"D:\桌面\杨草原毕设\杨草原\cod_raw_data_202606.csv",
+    r"D:\桌面\杨草原毕设\杨草原\clean_data_v2.csv",
+    r"D:\桌面\杨草原毕设\杨草原\alert_log_v2.csv"
+)
