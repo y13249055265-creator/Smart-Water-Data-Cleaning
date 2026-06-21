@@ -57,7 +57,7 @@ def clean_multi_water_quality_data(input_path, output_clean_path, output_alert_p
 
 # 运行路径 (自行修改为你电脑的绝对路径)
 clean_multi_water_quality_data(
-    r"D:\桌面\杨草原毕设\杨草原\cod_raw_data_202606.csv",
-    r"D:\桌面\杨草原毕设\杨草原\clean_data_v2.csv",
-    r"D:\桌面\杨草原毕设\杨草原\alert_log_v2.csv"
+    r"D:\桌面\cod_raw_data_202606.csv",
+    r"D:\桌面\clean_data_v2.csv",
+    r"D:\桌面\alert_log_v2.csv"
 )
